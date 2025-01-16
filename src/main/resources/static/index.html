@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Editor</title>
+  <link
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+          rel="stylesheet"
+  />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    .header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .menu-icon {
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .slider {
+      position: absolute;
+      left: -20%;
+      width: 250px;
+      background-color: #2c3e50;
+      color: white;
+      padding: 20px;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+      height: 100%;
+      transition: all 0.3s ease;
+    }
+
+    .slider a {
+      color: white;
+      text-decoration: none;
+      display: block;
+      margin: 10px 0;
+    }
+
+    .slider a:hover {
+      text-decoration: underline;
+    }
+
+    .options {
+      display: flex;
+      align-items: center;
+    }
+
+    .options a {
+      color: white;
+      text-decoration: none;
+      margin-left: 20px;
+    }
+
+    .options a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 50px);
+    }
+
+    .editor,
+    .preview {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .editor {
+      background-color: #f7f7f7;
+      border-right: 1px solid #ddd;
+    }
+
+    .preview {
+      background-color: white;
+    }
+
+    .editor textarea {
+      width: 100%;
+      height: 100%;
+      border: none;
+      resize: none;
+      background-color: #f7f7f7;
+      font-family: monospace;
+      color: #333;
+      padding: 0;
+      margin: 0;
+      outline: none;
+    }
+
+    .preview h1,
+    .preview h2,
+    .preview h3,
+    .preview h4,
+    .preview h5,
+    .preview h6 {
+      margin-top: 0;
+    }
+
+    .preview ul {
+      padding-left: 20px;
+    }
+
+    .preview blockquote {
+      border-left: 4px solid #ddd;
+      padding-left: 10px;
+      color: #777;
+    }
+
+    .preview a {
+      color: #1e88e5;
+      text-decoration: none;
+    }
+
+    .preview a:hover {
+      text-decoration: underline;
+    }
+
+    .header-menu {
+      display: flex;
+      justify-content: space-between;
+      width: 10%;
+    }
+  </style>
+</head>
+<body>
+<div class="header">
+  <div class="header-menu">
+    <i class="fas fa-bars menu-icon" onclick="toggleMenu()"></i>
+    <h1>DILLINGER</h1>
+  </div>
+  <div class="options">
+    <a href="#">PREVIEW AS</a>
+    <a href="#">EXPORT AS</a>
+    <a href="#">SAVE TO</a>
+    <a href="#">IMPORT FROM</a>
+  </div>
+</div>
+<div class="slider" id="slider">
+  <a href="#">Option 1</a>
+  <a href="#">Option 2</a>
+  <a href="#">Option 3</a>
+  <a href="#">Option 4</a>
+</div>
+<div class="container">
+  <div class="editor">
+      <textarea>
+# Dillinger
+## _The Last Markdown Editor, Ever_
+
+![N|Solid](https://cldup.com/dTxpPi9l0f.thumb.png)
+
+Dillinger is a cloud-enabled, mobile-ready, offline-storage compatible,
+AngularJS-powered HTML5 Markdown editor.
+
+- Type some Markdown on the left
+- See HTML in the right
+- ✨Magic ✨
+      </textarea>
+  </div>
+  <div class="preview"></div>
+</div>
+<script>
+  function toggleMenu() {
+    const slider = document.getElementById("slider");
+    slider.style.left = slider.style.left === "0%" ? "-20%" : "0%";
+  }
+
+  // 防抖函数，延迟执行函数调用
+  function debounce(func, delay) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => func.apply(this, args), delay);
+    };
+  }
+
+  // 渲染 Markdown 的函数
+  async function renderMarkdown(markdown) {
+    const preview = document.querySelector(".preview");
+    if (!markdown.trim()) {
+      preview.innerHTML = ""; // 如果为空，清空预览区
+      return;
+    }
+
+    preview.innerHTML = "<p style='color: gray;'>Rendering...</p>"; // 显示加载中
+
+    try {
+      const formData = new FormData();
+      formData.append("markdown", markdown);
+
+      const response = await fetch("http://localhost:8080/note/renderer", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch, status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.html) {
+        throw new Error("Invalid response: No 'html' field in response.");
+      }
+
+      preview.innerHTML = data.html; // 渲染 HTML
+    } catch (error) {
+      console.error("Error rendering markdown:", error);
+      preview.innerHTML = `
+        <p style="color: red;">Failed to render Markdown.</p>
+        <pre style="color: gray;">${error.message}</pre>
+      `;
+    }
+  }
+
+  // 绑定输入事件并使用防抖处理
+  const textarea = document.querySelector(".editor textarea");
+  textarea.addEventListener(
+          "input",
+          debounce(() => {
+            const markdown = textarea.value;
+            renderMarkdown(markdown); // 调用渲染函数
+          }, 500) // 延迟 500 毫秒
+  );
+</script>
+</body>
+</html>
